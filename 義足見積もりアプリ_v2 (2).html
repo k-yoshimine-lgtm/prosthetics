@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>下腿義足 見積もりシステム</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0ede8;
+    --border: #d8d4cc;
+    --accent: #1a4d6e;
+    --accent2: #2e7d9a;
+    --text: #1c1c1c;
+    --text2: #555;
+    --text3: #888;
+    --shadow: 0 2px 12px rgba(0,0,0,0.08);
+    --radius: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+
+  .header { background: var(--accent); color: white; padding: 14px 20px; display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+  .header-logo { font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; background: rgba(255,255,255,0.15); padding: 4px 8px; border-radius: 3px; }
+  .header h1 { font-size: 15px; font-weight: 500; letter-spacing: 0.05em; }
+
+  .main { max-width: 860px; margin: 0 auto; padding: 20px 16px 60px; }
+
+  .section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 14px; overflow: hidden; box-shadow: var(--shadow); }
+  .section-header { background: var(--surface2); padding: 10px 16px; font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .section-header::before { content: ''; display: block; width: 3px; height: 14px; background: var(--accent2); border-radius: 2px; }
+  .section-body { padding: 16px; }
+
+  .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 500px) { .input-grid { grid-template-columns: 1fr; } }
+  label { display: block; font-size: 11px; font-weight: 700; color: var(--text2); letter-spacing: 0.08em; margin-bottom: 5px; }
+  input[type="text"], select { width: 100%; padding: 9px 12px; border: 1.5px solid var(--border); border-radius: var(--radius); font-family: 'Noto Sans JP', sans-serif; font-size: 14px; color: var(--text); background: white; transition: border-color 0.15s, box-shadow 0.15s; -webkit-appearance: none; appearance: none; }
+  input[type="text"]:focus, select:focus { outline: none; border-color: var(--accent2); box-shadow: 0 0 0 3px rgba(46,125,154,0.15); }
+  select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23888' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px; }
+
+  /* ===== パターン選択 新UI ===== */
+  .pattern-area { display: flex; flex-direction: column; gap: 10px; }
+
+  /* ステップ1: グループ選択 */
+  .group-selector { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .group-btn {
+    border: 1.5px solid var(--border);
+    background: white;
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.12s;
+    font-family: 'Noto Sans JP', sans-serif;
+  }
+  .group-btn:hover { border-color: var(--accent2); background: #eaf2f8; }
+  .group-btn.selected { border-color: var(--accent); background: var(--accent); color: white; }
+  .group-btn .g-label { font-size: 13px; font-weight: 700; display: block; }
+  .group-btn .g-count { font-size: 10px; opacity: 0.65; margin-top: 2px; }
+
+  /* ステップ2: パターンチップ */
+  .pattern-chips-wrap {
+    background: #eaf2f8;
+    border: 1.5px solid #b8d4e4;
+    border-radius: var(--radius);
+    padding: 12px;
+    display: none;
+  }
+  .pattern-chips-wrap.show { display: block; }
+  .chips-label { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; color: var(--accent); margin-bottom: 8px; }
+  .chips-row { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    border: 1.5px solid #b8d4e4;
+    background: white;
+    border-radius: 20px;
+    padding: 6px 14px;
+    cursor: pointer;
+    font-family: 'Noto Sans JP', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.12s;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip:hover { border-color: var(--accent2); background: #d6ebf5; }
+  .chip.selected { border-color: var(--accent); background: var(--accent); color: white; }
+  .chip .chip-code { font-family: 'IBM Plex Mono', monospace; font-size: 13px; font-weight: 700; }
+  .chip .chip-desc { font-size: 11px; opacity: 0.8; }
+
+  /* 選択済みバッジ */
+  .selected-badge {
+    background: #e8f0f5;
+    border: 1px solid #b8d4e4;
+    border-radius: var(--radius);
+    padding: 8px 14px;
+    font-size: 12px;
+    color: var(--accent);
+    display: none;
+    align-items: center;
+    gap: 8px;
+  }
+  .selected-badge.show { display: flex; }
+  .selected-badge strong { font-family: 'IBM Plex Mono', monospace; font-size: 14px; }
+  .badge-change { font-size: 11px; color: var(--accent2); cursor: pointer; text-decoration: underline; margin-left: auto; }
+
+  .e-note { background: #fff8e7; border: 1px solid #f0d070; border-radius: var(--radius); padding: 10px 14px; font-size: 12px; color: #7a5a00; margin-top: 6px; display: none; }
+  .e-note.show { display: block; }
+
+  /* パーツテーブル */
+  .parts-table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th { background: var(--surface2); padding: 8px 10px; text-align: left; font-size: 10px; font-weight: 700; letter-spacing: 0.08em; color: var(--text2); border-bottom: 1.5px solid var(--border); white-space: nowrap; }
+  td { padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: #fafaf8; }
+  .cat-badge { display: inline-block; font-size: 9px; font-family: 'IBM Plex Mono', monospace; padding: 2px 6px; border-radius: 3px; background: #e8f0f5; color: #1a4d6e; white-space: nowrap; }
+  .code-cell { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--accent); font-weight: 600; }
+  .price-cell { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .qty-input { width: 52px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 4px; text-align: center; font-size: 13px; font-family: 'IBM Plex Mono', monospace; }
+  .part-select { font-size: 12px; padding: 5px 28px 5px 8px; max-width: 100%; min-width: 180px; }
+
+  .add-part-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; padding: 10px 10px 8px; background: #f8f8f5; border-top: 1px solid #eee; }
+  .add-part-row select { font-size: 12px; padding: 6px 28px 6px 8px; }
+  .btn-add { padding: 7px 14px; background: var(--accent2); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-family: 'Noto Sans JP', sans-serif; font-size: 12px; font-weight: 500; white-space: nowrap; }
+  .btn-add:hover { background: var(--accent); }
+  .btn-del { background: none; border: none; cursor: pointer; color: #bbb; font-size: 16px; padding: 2px 4px; line-height: 1; }
+  .btn-del:hover { color: #c0392b; }
+
+  .total-box { background: var(--accent); color: white; padding: 16px 20px; border-radius: var(--radius); display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 14px; }
+  .total-label { font-size: 11px; opacity: 0.75; margin-bottom: 2px; }
+  .total-value { font-family: 'IBM Plex Mono', monospace; font-size: 26px; font-weight: 600; letter-spacing: -0.02em; }
+  .total-sub { font-size: 11px; opacity: 0.7; text-align: right; }
+  .total-sub div { margin-top: 2px; }
+
+  .btn-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .btn-primary { flex: 1; min-width: 140px; padding: 13px 20px; background: var(--accent); color: white; border: none; border-radius: var(--radius); font-family: 'Noto Sans JP', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: 0.05em; transition: background 0.15s; text-align: center; }
+  .btn-primary:hover { background: #0e3550; }
+  .btn-secondary { padding: 13px 20px; background: white; color: var(--accent); border: 1.5px solid var(--accent); border-radius: var(--radius); font-family: 'Noto Sans JP', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+  .btn-secondary:hover { background: #eaf2f8; }
+
+  #preview-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 200; overflow-y: auto; padding: 20px; }
+  #preview-overlay.show { display: block; }
+  #preview-box { background: white; max-width: 700px; margin: 0 auto; padding: 36px 40px; border-radius: 4px; position: relative; }
+  .preview-close { position: absolute; top: 14px; right: 14px; background: none; border: 1px solid #ddd; border-radius: 4px; padding: 5px 12px; cursor: pointer; font-size: 12px; color: var(--text2); }
+  .preview-print-btn { display: block; margin: 20px auto 0; padding: 12px 30px; background: var(--accent); color: white; border: none; border-radius: var(--radius); font-family: 'Noto Sans JP', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; letter-spacing: 0.05em; }
+
+  @media print {
+    body * { visibility: hidden; }
+    #print-area, #print-area * { visibility: visible; }
+    #print-area { position: fixed; inset: 0; background: white; padding: 20mm 15mm; }
+    .no-print { display: none !important; }
+  }
+
+  .empty-state { text-align: center; padding: 32px; color: var(--text3); }
+  .empty-state .icon { font-size: 32px; margin-bottom: 8px; }
+  .empty-state p { font-size: 12px; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(60px); background: #1a4d6e; color: white; padding: 10px 22px; border-radius: 20px; font-size: 13px; font-weight: 500; transition: transform 0.3s ease; z-index: 300; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+  #drive-result {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.5); z-index: 400;
+    align-items: center; justify-content: center;
+  }
+  #drive-result.show { display: flex; }
+  #drive-result-box {
+    background: white; border-radius: 8px; padding: 28px 32px;
+    max-width: 360px; width: 90%; text-align: center;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="header-logo">PROSTHETICS</span>
+  <h1>下腿義足　見積もりシステム</h1>
+</div>
+
+<div class="main">
+
+  <div class="section">
+    <div class="section-header">STEP 1　基本情報</div>
+    <div class="section-body">
+      <div class="input-grid">
+        <div><label>病院名</label><input type="text" id="hospital" placeholder="病院名を入力" autocomplete="off"></div>
+        <div><label>患者名</label><input type="text" id="patient" placeholder="患者名を入力" autocomplete="off"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-header">STEP 2　パターン選択</div>
+    <div class="section-body">
+      <div class="pattern-area">
+
+        <!-- グループ選択 -->
+        <div>
+          <label style="margin-bottom:8px">① 装着方式を選択</label>
+          <div class="group-selector" id="group-selector"></div>
+        </div>
+
+        <!-- パターンチップ -->
+        <div class="pattern-chips-wrap" id="chips-wrap">
+          <div class="chips-label" id="chips-label">② パターンを選択</div>
+          <div class="chips-row" id="chips-row"></div>
+        </div>
+
+        <!-- 選択済みバッジ -->
+        <div class="selected-badge" id="selected-badge">
+          <span>選択中：</span>
+          <strong id="badge-code">—</strong>
+          <span id="badge-modified" style="display:none;background:#fff3cd;color:#856404;font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;border:1px solid #ffc107;">⚠ 一部変更あり</span>
+          <span id="badge-desc" style="font-size:12px;color:#555"></span>
+          <span class="badge-change" onclick="clearPattern()">変更する</span>
+        </div>
+
+        <!-- Eパターン注意 -->
+        <div class="e-note" id="e-note">ℹ️ E パターンは全パーツ選択式です。下の「パーツ一覧」から必要なパーツを追加してください。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 足部アラートボックス -->
+  <div id="foot-alert-box" style="display:none;background:#fff3cd;border:1.5px solid #ffc107;border-radius:6px;padding:14px 16px;margin-bottom:14px;position:relative;">
+    <div style="display:flex;align-items:flex-start;gap:10px;">
+      <span style="font-size:20px;line-height:1.2;">⚠️</span>
+      <div style="flex:1;">
+        <div style="font-size:12px;font-weight:700;color:#856404;margin-bottom:6px;">
+          「<span id="foot-alert-name"></span>」を選択しました。以下のパーツも必要です：
+        </div>
+        <ul id="foot-alert-list" style="margin:0;padding-left:18px;font-size:12px;color:#856404;line-height:1.8;"></ul>
+      </div>
+      <button onclick="closeFootAlert()" style="background:none;border:none;font-size:18px;color:#aaa;cursor:pointer;padding:0 2px;line-height:1;">✕</button>
+    </div>
+  </div>
+
+  <div class="section" id="parts-section" style="display:none">
+    <div class="section-header">STEP 3　パーツ確認・変更</div>
+    <div class="parts-table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th style="width:34px"></th>
+            <th>商品コード</th>
+            <th>品名 / 変更</th>
+            <th>カテゴリ</th>
+            <th style="width:60px">数量</th>
+            <th style="text-align:right">単価</th>
+          </tr>
+        </thead>
+        <tbody id="parts-tbody"></tbody>
+      </table>
+      <div class="add-part-row">
+        <select id="add-cat-sel" onchange="refreshAddSel()">
+          <option value="">— カテゴリを選択 —</option>
+        </select>
+        <select id="add-item-sel"><option value="">— 品名を選択 —</option></select>
+        <input type="number" id="add-qty" value="1" min="1" style="width:52px;padding:6px;border:1px solid var(--border);border-radius:4px;font-size:13px;text-align:center;">
+        <button class="btn-add" onclick="addPart()">＋ 追加</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 仮想実長サマリー -->
+  <div id="sys-total-box" style="display:none;background:#eaf2f8;border:1.5px solid #b8d4e4;border-radius:6px;padding:14px 20px;margin-bottom:14px;">
+    <div style="font-size:10px;font-weight:700;letter-spacing:0.1em;color:#1a4d6e;margin-bottom:10px;display:flex;align-items:center;gap:6px;">
+      <span style="display:inline-block;width:3px;height:13px;background:#2e7d9a;border-radius:2px;"></span>
+      仮想実長合計（パーツ合算）
+    </div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:center;">
+      <div>
+        <div style="font-size:10px;color:#555;margin-bottom:3px;">最大 (㎜)</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:#1a4d6e;" id="sys-max-total">—</div>
+      </div>
+      <div style="font-size:18px;color:#b8d4e4;font-weight:300;">〜</div>
+      <div>
+        <div style="font-size:10px;color:#555;margin-bottom:3px;">最小 (㎜)</div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:#2e7d9a;" id="sys-min-total">—</div>
+      </div>
+      <div style="margin-left:auto;background:white;border:1px solid #b8d4e4;border-radius:5px;padding:10px 14px;min-width:180px;">
+        <div style="font-size:10px;color:#555;margin-bottom:4px;">＋ 断端長 を入力 → 義足長</div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="number" id="stump-length" placeholder="断端長(㎜)" min="0"
+            style="width:110px;padding:6px 8px;border:1.5px solid #b8d4e4;border-radius:4px;font-size:14px;font-family:'IBM Plex Mono',monospace;"
+            oninput="updateProstheticLength()">
+          <span style="font-size:11px;color:#888;">㎜</span>
+        </div>
+        <div id="prosthetic-length" style="margin-top:6px;font-size:11px;color:#1a4d6e;display:none;">
+          義足長：<strong id="pros-max" style="font-family:'IBM Plex Mono',monospace"></strong> 〜 <strong id="pros-min" style="font-family:'IBM Plex Mono',monospace"></strong> ㎜
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="total-box" class="total-box" style="display:none">
+    <div>
+      <div class="total-label">小計合計</div>
+      <div class="total-value" id="subtotal-val">¥0</div>
+    </div>
+    <div class="total-sub">
+      <div>加算（6%）：<span id="tax-val">¥0</span></div>
+      <div style="font-size:14px;font-weight:700;margin-top:4px">合計：<span id="grand-val" style="font-family:'IBM Plex Mono';font-size:18px">¥0</span></div>
+    </div>
+  </div>
+
+  <div id="action-row" class="btn-row" style="display:none">
+    <button class="btn-primary" onclick="showPreview()">📄　見積書プレビュー・印刷</button>
+    <button class="btn-primary" onclick="saveToDrive()" style="background:#1e6b45;" id="drive-btn">☁️　Driveに保存</button>
+    <button class="btn-secondary" onclick="resetAll()">最初から</button>
+  </div>
+
+  <div id="empty-hint" class="empty-state">
+    <div class="icon">📋</div>
+    <p>パターンを選択するとパーツ一覧が表示されます</p>
+  </div>
+</div>
+
+<div id="preview-overlay">
+  <div id="preview-box">
+    <button class="preview-close" onclick="closePreview()">✕ 閉じる</button>
+    <div id="print-area"></div>
+    <button class="preview-print-btn no-print" onclick="window.print()">🖨　このページを印刷 / PDF保存</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- Drive保存結果モーダル -->
+<div id="drive-result">
+  <div id="drive-result-box">
+    <div id="drive-result-icon" style="font-size:40px;margin-bottom:12px;">☁️</div>
+    <div id="drive-result-title" style="font-size:16px;font-weight:700;margin-bottom:8px;color:#1a4d6e;"></div>
+    <div id="drive-result-msg" style="font-size:13px;color:#555;margin-bottom:20px;line-height:1.6;"></div>
+    <a id="drive-result-link" href="#" target="_blank" style="display:none;margin-bottom:14px;font-size:12px;color:#2e7d9a;">📂 Driveで開く</a>
+    <br>
+    <button onclick="document.getElementById('drive-result').classList.remove('show')"
+      style="padding:10px 28px;background:#1a4d6e;color:white;border:none;border-radius:6px;font-size:14px;font-weight:700;cursor:pointer;">閉じる</button>
+  </div>
+</div>
+
+<script>
+// ===== データ =====
+const GROUPS = [{"id":"A","label":"PTB式","patterns":["A1","A2"]},{"id":"B","label":"TSB式（差し込み）","patterns":["B1","B2","B3","B4","B5"]},{"id":"C","label":"TSB式（吸着式）","patterns":["C1","C2","C3","C4","C5","C6","C7","C8"]},{"id":"D","label":"TSB式（キャッチピン）","patterns":["D1","D2","D3","D4","D5","D6","D7"]},{"id":"E","label":"全選択式（カスタム）","patterns":["E1"]}];
+
+const PATTERNS_META = {"A1":"PTB式 ＋ ｿﾌﾄｲﾝｻｰﾄ ＋ 単軸(1H38)","A2":"PTB式 ＋ ｿﾌﾄｲﾝｻｰﾄ ＋ SACH(J-foot)","B1":"TSB式（差し込み）＋ ｶﾌﾍﾞﾙﾄ ＋ 単軸(1H38)","B2":"TSB式（差し込み）＋ ｶﾌﾍﾞﾙﾄ ＋ 多軸(ﾊﾞﾗﾝｽﾌｯﾄ)","B3":"TSB式（差し込み）＋ ｶﾌﾍﾞﾙﾄ ＋ SACH（低活動）（ﾃﾘｵﾝｿﾌﾄ）","B4":"TSB式（差し込み）＋ ｶﾌﾍﾞﾙﾄ ＋ SACH（中活動）(J-foot)","B5":"TSB式（差し込み）＋ ｶﾌﾍﾞﾙﾄ ＋ SACH（高活動）（1C50）","C1":"TSB式（吸着式）＋ ｽﾘｰﾌﾞ ＋ 単軸(1H38)","C2":"TSB式（吸着式）＋ｽﾘｰﾌﾞ＋多軸(ﾊﾞﾗﾝｽﾌｯﾄ)","C3":"TSB式（吸着式）＋ｽﾘｰﾌﾞ＋SACH（低活動）（ﾃﾘｵﾝｿﾌﾄ）","C4":"TSB式（吸着式）＋ｽﾘｰﾌﾞ＋SACH（中活動）(J-foot)","C5":"TSB式（吸着式）＋ｽﾘｰﾌﾞ＋SACH（高活動）（1C50）","C6":"TSB式（吸着式）＋ｼｰﾙｲﾝ＋多軸(ﾊﾞﾗﾝｽﾌｯﾄ)","C7":"TSB式（吸着式）＋ｼｰﾙｲﾝ＋SACH（中活動）(J-foot)","C8":"TSB式（吸着式）＋ｼｰﾙｲﾝ＋SACH（高活動）（1C50）","D1":"TSB式（キャッチピン）＋単軸(1H38)","D2":"TSB式（キャッチピン）＋多軸(ﾊﾞﾗﾝｽﾌｯﾄ)","D3":"TSB式（キャッチピン）＋SACH（低活動）（ﾃﾘｵﾝｿﾌﾄ）","D4":"TSB式（キャッチピン）＋SACH（中活動）(J-foot)","D5":"TSB式（キャッチピン）＋SACH（高活動）（1C50）","D6":"TSB式（キャッチピン）＋多軸＋長断端(ﾊﾞﾗﾝｽﾌｯﾄ)","D7":"TSB式（キャッチピン）＋SACH（高活動）＋長断端（1C50）","E1":"全選択式"};
+
+const MASTER = {"161009":{"name":"義足用　B-4　PTB式","price":86500,"category":"基本価格","sys_max":null,"sys_min":null},"161022":{"name":"義足用　B-4　TSB式","price":86500,"category":"基本価格","sys_max":null,"sys_min":null},"161020":{"name":"ｼﾘｺｰﾝﾁｪｯｸｿｹｯﾄ","price":50600,"category":"基本価格","sys_max":null,"sys_min":null},"162015":{"name":"義足用　B-4　熱硬化性樹脂","price":28100,"category":"基本価格","sys_max":null,"sys_min":null},"162016":{"name":"義足用　B-4　熱可塑性樹脂","price":14700,"category":"基本価格","sys_max":null,"sys_min":null},"162026":{"name":"ｶｰﾎﾞﾝｽﾄｯｷﾈｯﾄ","price":7350,"category":"基本価格","sys_max":null,"sys_min":null},"163015":{"name":"義足用　B-4　軟性発泡樹脂","price":5000,"category":"基本価格","sys_max":null,"sys_min":null},"163016":{"name":"義足用　B-4　皮革・軟性発泡樹脂","price":7600,"category":"基本価格","sys_max":null,"sys_min":null},"164003":{"name":"支持部　下腿義足用","price":12000,"category":"基本価格","sys_max":null,"sys_min":null},"165010":{"name":"義足懸垂用部品　PTBｶﾌﾍﾞﾙﾄ一式","price":9750,"category":"基本価格","sys_max":null,"sys_min":null},"165014":{"name":"断端袋　下腿用","price":5900,"category":"基本価格","sys_max":null,"sys_min":null},"166004":{"name":"外装　下腿義足用","price":19200,"category":"基本価格","sys_max":null,"sys_min":null},"184019":{"name":"完成用部品の交換","price":2900,"category":"修理基準","sys_max":null,"sys_min":null},"184020":{"name":"ソケットの調整","price":8000,"category":"修理基準","sys_max":null,"sys_min":null},"169006":{"name":"A固定　ｵｯﾄｰﾎﾞｯｸ　2R54　ｱﾙﾐ","price":19800,"category":"足継手","sys_max":null,"sys_min":null},"169003":{"name":"A固定　ｵｯﾄｰﾎﾞｯｸ　2R31　ﾁﾀﾝ","price":24100,"category":"足継手","sys_max":null,"sys_min":null},"169032":{"name":"A固定　ﾗﾎﾟｯｸ　M1305　（Ai SACH）","price":7800,"category":"足継手","sys_max":null,"sys_min":null},"169043":{"name":"B遊動　2R33　ﾁﾀﾝ","price":58000,"category":"足継手","sys_max":null,"sys_min":null},"169044":{"name":"B遊動　2R51　ｱﾙﾐ","price":39700,"category":"足継手","sys_max":null,"sys_min":null},"171371":{"name":"ｵｽﾞｰﾙ　L-272000　ﾁﾀﾝ","price":27100,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":9,"sys_min":9},"171297":{"name":"ｵｽﾞｰﾙ　L-273000　ｽﾃﾝﾚｽ","price":13600,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":8,"sys_min":8},"171393":{"name":"ｵｽﾞｰﾙ　L-672000　ﾁﾀﾝ","price":36200,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":9,"sys_min":9},"171298":{"name":"ｵｽﾞｰﾙ　L-673000　ｽﾃﾝﾚｽ","price":16100,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":9,"sys_min":9},"171026":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R100　ﾁﾀﾝ","price":29800,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":10,"sys_min":10},"171301":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R111　4羽ﾒｽ","price":38300,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":25,"sys_min":25},"171334":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R116　4羽ｵｽ","price":34000,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":20,"sys_min":20},"171014":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R68　ｱﾙﾐ","price":19800,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":11,"sys_min":11},"171476":{"name":"ｵｽﾞｰﾙ　L-674000　4穴用ｱﾙﾐ","price":16600,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":15,"sys_min":15},"171477":{"name":"ｵｽﾞｰﾙ　L-675000　4穴用ﾁﾀﾝ","price":35900,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":15,"sys_min":15},"171167":{"name":"ﾗﾎﾟｯｸ　M0205","price":19000,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":22,"sys_min":22},"171168":{"name":"ﾗﾎﾟｯｸ　M0206　小型","price":19000,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":19,"sys_min":19},"171169":{"name":"ﾗﾎﾟｯｸ　M0207　軽量ﾁﾀﾝ","price":26200,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":22,"sys_min":22},"171324":{"name":"ﾗﾎﾟｯｸ　M0240　","price":29500,"category":"ｿｹｯﾄｱﾀﾞﾌﾟﾀ","sys_max":13,"sys_min":13},"171290":{"name":"ｵｽﾞｰﾙ　A-233100　4穴ｵｽ　ｱﾙﾐ","price":13400,"category":"ｺﾈｸﾀ","sys_max":9,"sys_min":9},"171291":{"name":"ｵｽﾞｰﾙ　A-242100　4穴ﾒｽ　ｱﾙﾐ","price":11200,"category":"ｺﾈｸﾀ","sys_max":16,"sys_min":16},"171429":{"name":"ｵｽﾞｰﾙ　A-235100　4穴ｵｽ　ﾁﾀﾝ","price":22400,"category":"ｺﾈｸﾀ","sys_max":9,"sys_min":9},"171431":{"name":"ｵｽﾞｰﾙ　A-245100　4穴ﾒｽ　ﾁﾀﾝ","price":25700,"category":"ｺﾈｸﾀ","sys_max":16,"sys_min":16},"171010":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R54　4穴ｵｽ　ﾁﾀﾝ","price":14600,"category":"ｺﾈｸﾀ","sys_max":7,"sys_min":7},"171021":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R74　4穴ｵｽ　ｱﾙﾐ","price":10600,"category":"ｺﾈｸﾀ","sys_max":11,"sys_min":11},"171011":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R55　4穴ﾒｽ　ﾁﾀﾝ","price":22700,"category":"ｺﾈｸﾀ","sys_max":14,"sys_min":14},"171025":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R95　4穴ﾒｽ　ｱﾙﾐ","price":7300,"category":"ｺﾈｸﾀ","sys_max":14,"sys_min":14},"171529":{"name":"ﾗﾎﾟｯｸ　M0276　4穴ｵｽ　ﾁﾀﾝ","price":16800,"category":"ｺﾈｸﾀ","sys_max":7,"sys_min":7},"171535":{"name":"ﾗﾎﾟｯｸ　M0277　4穴ﾒｽ　ﾁﾀﾝ","price":20800,"category":"ｺﾈｸﾀ","sys_max":17,"sys_min":17},"171434":{"name":"ｵｯﾄｰﾎﾞｯｸ　6A54　ｽﾗｲﾄﾞ（ｵｽ/ﾒｽ）","price":46200,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":33,"sys_min":33},"171028":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R104=60　ｽﾗｲﾄﾞ","price":43500,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":60,"sys_min":60},"171029":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R104=75","price":43500,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":75,"sys_min":75},"171015":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R72=32","price":42600,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":32,"sys_min":32},"171016":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R72=45","price":42600,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":45,"sys_min":45},"171017":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R72=60","price":42600,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":60,"sys_min":60},"171336":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R72=75","price":42600,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":75,"sys_min":75},"171327":{"name":"ﾗﾎﾟｯｸ　M0540-32　ｱﾙﾐ","price":28400,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":32,"sys_min":32},"171328":{"name":"ﾗﾎﾟｯｸ　M0540-35　ｱﾙﾐ","price":28400,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":35,"sys_min":35},"171329":{"name":"ﾗﾎﾟｯｸ　M0540-40　ｱﾙﾐ","price":28400,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":40,"sys_min":40},"171330":{"name":"ﾗﾎﾟｯｸ　M0540-45　ｱﾙﾐ","price":31200,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":45,"sys_min":45},"171331":{"name":"ﾗﾎﾟｯｸ　M0540-50　ｱﾙﾐ","price":31200,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":50,"sys_min":50},"171332":{"name":"ﾗﾎﾟｯｸ　M0540-55　ｱﾙﾐ","price":31200,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":55,"sys_min":55},"171333":{"name":"ﾗﾎﾟｯｸ　M0540-60　ｱﾙﾐ","price":31200,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":60,"sys_min":60},"171491":{"name":"ﾗﾎﾟｯｸ　M0541-32　ﾁﾀﾝ","price":36200,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":32,"sys_min":32},"171492":{"name":"ﾗﾎﾟｯｸ　M0541-35　ﾁﾀﾝ","price":36200,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":35,"sys_min":35},"171493":{"name":"ﾗﾎﾟｯｸ　M0541-40　ﾁﾀﾝ","price":36200,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":40,"sys_min":40},"171494":{"name":"ﾗﾎﾟｯｸ　M0541-45　ﾁﾀﾝ","price":36200,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":45,"sys_min":45},"171495":{"name":"ﾗﾎﾟｯｸ　M0541-50　ﾁﾀﾝ","price":36200,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":50,"sys_min":50},"171496":{"name":"ﾗﾎﾟｯｸ　M0541-55　ﾁﾀﾝ","price":36200,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":55,"sys_min":55},"171497":{"name":"ﾗﾎﾟｯｸ　M0541-60　ﾁﾀﾝ","price":36200,"category":"ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ","sys_max":60,"sys_min":60},"172125":{"name":"ﾗﾎﾟｯｸ　M0820　ﾁｭｰﾌﾞのみ　ｱﾙﾐ（250㎜）","price":7900,"category":"ﾁｭｰﾌﾞ","sys_max":250,"sys_min":null},"172126":{"name":"ﾗﾎﾟｯｸ　M0821　ﾁｭｰﾌﾞのみ　ｱﾙﾐ（500㎜）","price":13600,"category":"ﾁｭｰﾌﾞ","sys_max":500,"sys_min":null},"172091":{"name":"ﾗﾎﾟｯｸ　M0810　ﾁｭｰﾌﾞのみ　ｶｰﾎﾞﾝ（250㎜）","price":24900,"category":"ﾁｭｰﾌﾞ","sys_max":250,"sys_min":null},"172092":{"name":"ﾗﾎﾟｯｸ　M0811　ﾁｭｰﾌﾞのみ　ｶｰﾎﾞﾝ（500㎜）","price":39600,"category":"ﾁｭｰﾌﾞ","sys_max":500,"sys_min":null},"172003":{"name":"ｵｯﾄｰﾎﾞｯｸ　2R2　ｽﾃﾝﾚｽ（200㎜）","price":14200,"category":"ﾁｭｰﾌﾞ","sys_max":214,"sys_min":45},"172004":{"name":"ｵｯﾄｰﾎﾞｯｸ　2R3　ｽﾃﾝﾚｽ（450㎜）","price":14900,"category":"ﾁｭｰﾌﾞ","sys_max":454,"sys_min":45},"172005":{"name":"ｵｯﾄｰﾎﾞｯｸ　2R37　ﾁﾀﾝ（200㎜）","price":25500,"category":"ﾁｭｰﾌﾞ","sys_max":214,"sys_min":45},"172006":{"name":"ｵｯﾄｰﾎﾞｯｸ　2R38　ﾁﾀﾝ（450㎜）","price":28400,"category":"ﾁｭｰﾌﾞ","sys_max":454,"sys_min":45},"172010":{"name":"ｵｯﾄｰﾎﾞｯｸ　2R50　ｱﾙﾐ（200㎜）","price":22700,"category":"ﾁｭｰﾌﾞ","sys_max":214,"sys_min":45},"172009":{"name":"ｵｯﾄｰﾎﾞｯｸ　2R49　ｱﾙﾐ（400㎜）","price":28400,"category":"ﾁｭｰﾌﾞ","sys_max":414,"sys_min":45},"172148":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R72=D","price":26900,"category":"ﾁｭｰﾌﾞ","sys_max":18,"sys_min":18},"172085":{"name":"ﾗﾎﾟｯｸ　M0463　ｱﾙﾐ","price":19800,"category":"ﾁｭｰﾌﾞ","sys_max":80,"sys_min":22},"172094":{"name":"ﾗﾎﾟｯｸ　M0860　ｶｰﾎﾞﾝ","price":49800,"category":"ﾁｭｰﾌﾞ","sys_max":516,"sys_min":45},"172128":{"name":"ﾗﾎﾟｯｸ　M0870　ﾁﾀﾝ（250㎜）","price":66000,"category":"ﾁｭｰﾌﾞ","sys_max":270,"sys_min":20},"172129":{"name":"ﾗﾎﾟｯｸ　M0871　ﾁﾀﾝ（500㎜）","price":69500,"category":"ﾁｭｰﾌﾞ","sys_max":520,"sys_min":20},"173077":{"name":"ﾀﾞｳ　GUPT-FCLAMP　ﾁﾀﾝ","price":19800,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":50,"sys_min":50},"173075":{"name":"ｵｽﾞｰﾙ　A-342100　ｱﾙﾐ","price":28100,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":50,"sys_min":50},"173108":{"name":"ｵｽﾞｰﾙ　A-345100　ﾁﾀﾝ","price":33700,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":50,"sys_min":50},"173003":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R21　ｽﾃﾝﾚｽ","price":13700,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":48,"sys_min":48},"173004":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R52　ﾁﾀﾝ","price":32600,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":48,"sys_min":48},"173007":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R69　ｱﾙﾐ","price":28400,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":49,"sys_min":49},"173005":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R56　傾斜","price":44800,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":49,"sys_min":49},"173093":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R103　ｽﾗｲﾄﾞ　ﾁﾀﾝ","price":52800,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":67,"sys_min":67},"173010":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R98　ｽﾗｲﾄﾞ　ｱﾙﾐ","price":42600,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":73,"sys_min":73},"173122":{"name":"ﾌﾟﾛﾃｵｰﾙ　1D400-TC　ﾁﾀﾝ","price":42600,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":50,"sys_min":50},"173129":{"name":"ﾌﾟﾛﾃｵｰﾙ　1D410-TC　ｱﾙﾐ","price":15000,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":50,"sys_min":50},"173049":{"name":"ﾗﾎﾟｯｸ　M0461","price":27900,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":44.5,"sys_min":45},"173094":{"name":"ﾗﾎﾟｯｸ　M0471","price":46200,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":45,"sys_min":45},"173050":{"name":"ﾗﾎﾟｯｸ　M0468","price":31000,"category":"ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ","sys_max":60,"sys_min":60},"177179":{"name":"SACH　ｵｽﾞｰﾙ　PLPO　ﾌﾟﾛﾌﾚｯｸｽLP","price":394400,"category":"足部","sys_max":72,"sys_min":72},"177186":{"name":"SACH　ｵｽﾞｰﾙ　PLTO　ﾌﾟﾛﾌﾚｯｸｽLPﾄｰｼｮﾝ","price":517700,"category":"足部","sys_max":146,"sys_min":146},"177218":{"name":"SACH　ｵｯﾄｰﾎﾞｯｸ　1C53　ﾀﾚｵLP","price":235900,"category":"足部","sys_max":65,"sys_min":65},"177142":{"name":"SACH　ｵｽﾞｰﾙ　VLPE/FSEO　ﾊﾞﾘﾌﾚｯｸｽ","price":239200,"category":"足部","sys_max":164,"sys_min":164},"177175":{"name":"SACH　ｵｯﾄｰﾎﾞｯｸ　1C10　ﾃﾘｵﾝ","price":114900,"category":"足部","sys_max":65,"sys_min":65},"177181":{"name":"SACH　ｵｯﾄｰﾎﾞｯｸ　1C11　ﾃﾘｵﾝｿﾌﾄ","price":96800,"category":"足部","sys_max":62,"sys_min":62},"177130":{"name":"SACH　ｵｯﾄｰﾎﾞｯｸ　1C30　ﾄﾗｲｱｽ","price":157300,"category":"足部","sys_max":112,"sys_min":112},"177001":{"name":"SACH　ｵｯﾄｰﾎﾞｯｸ　1C40　Cｳｫｰｸ","price":338800,"category":"足部","sys_max":94,"sys_min":94},"177199":{"name":"SACH　ｵｯﾄｰﾎﾞｯｸ　1C50　ﾀﾚｵ","price":284300,"category":"足部","sys_max":152,"sys_min":152},"177002":{"name":"SACH　ｵｯﾄｰﾎﾞｯｸ　1D10　ﾀﾞｲﾅﾐｯｸﾌｯﾄ","price":50100,"category":"足部","sys_max":84,"sys_min":84},"177003":{"name":"SACH　ｵｯﾄｰﾎﾞｯｸ　1D11　ﾀﾞｲﾅﾐｯｸﾌｯﾄ","price":51400,"category":"足部","sys_max":82,"sys_min":82},"177108":{"name":"SACH　ｵｯﾄｰﾎﾞｯｸ　1S49","price":25500,"category":"足部","sys_max":80,"sys_min":80},"177126":{"name":"SACH　ﾌﾟﾛﾃｵｰﾙUSA　FS3000　ﾊｲﾗﾝﾀﾞｰ","price":296400,"category":"足部","sys_max":103,"sys_min":103},"177042":{"name":"SACH　ﾗﾎﾟｯｸ　M1170　J-foot","price":99800,"category":"足部","sys_max":79,"sys_min":79},"177162":{"name":"SACH　ﾗﾎﾟｯｸ　SL1160　Ai SACH","price":38600,"category":"足部","sys_max":70,"sys_min":70},"177115":{"name":"SACH　ﾗﾎﾟｯｸ　C1170　小児用J-foot","price":115400,"category":"足部","sys_max":72,"sys_min":72},"177055":{"name":"単軸　ｵｯﾄｰﾎﾞｯｸ　1H38","price":31200,"category":"足部","sys_max":65,"sys_min":65},"177208":{"name":"多軸　ｵｽﾞｰﾙ　BSP0　ﾊﾞﾗﾝｽﾌｯﾄS","price":95500,"category":"足部","sys_max":129,"sys_min":129},"177152":{"name":"多軸　ｵｽﾞｰﾙ　FBP0　ﾌﾚｯｸｽﾌｯﾄ　ﾊﾞﾗﾝｽ","price":84000,"category":"足部","sys_max":59,"sys_min":59},"177163":{"name":"多軸　ｵｽﾞｰﾙ　JBPE　ﾊﾞﾗﾝｽﾌｯﾄJ","price":116400,"category":"足部","sys_max":125,"sys_min":125},"177155":{"name":"多軸　ｵｯﾄｰﾎﾞｯｸ　1M10　ｱｼﾞｬｽﾄ","price":133100,"category":"足部","sys_max":73,"sys_min":73},"179001":{"name":"ｵｯﾄｰﾎﾞｯｸ　2R14　（2R8/2R31/2R54用）","price":1000,"category":"ｺﾈｸｼｮﾝﾌﾟﾚｰﾄ","sys_max":null,"sys_min":null},"179002":{"name":"ｵｯﾄｰﾎﾞｯｸ　2R22　（2R10/2R51/2R22用）","price":2400,"category":"ｺﾈｸｼｮﾝﾌﾟﾚｰﾄ","sys_max":null,"sys_min":null},"179024":{"name":"ﾗﾎﾟｯｸ　M12-007　J-foot用","price":3850,"category":"ｺﾈｸｼｮﾝﾌﾟﾚｰﾄ","sys_max":null,"sys_min":null},"180060":{"name":"ｵｽﾞｰﾙ　FCX0002","price":21000,"category":"ﾌｫｰﾑｶﾊﾞｰ","sys_max":null,"sys_min":null},"180067":{"name":"ｵｯﾄｰﾎﾞｯｸ　6R18　硬性（削りあり）","price":11300,"category":"ﾌｫｰﾑｶﾊﾞｰ","sys_max":null,"sys_min":null},"180034":{"name":"ｵｯﾄｰﾎﾞｯｸ　6R6　軟性","price":14300,"category":"ﾌｫｰﾑｶﾊﾞｰ","sys_max":null,"sys_min":null},"180035":{"name":"ｵｯﾄｰﾎﾞｯｸ　6R8　硬性","price":11500,"category":"ﾌｫｰﾑｶﾊﾞｰ","sys_max":null,"sys_min":null},"180086":{"name":"啓愛　BKFC　硬性","price":7500,"category":"ﾌｫｰﾑｶﾊﾞｰ","sys_max":null,"sys_min":null},"180087":{"name":"啓愛　BKFF　軟性","price":5600,"category":"ﾌｫｰﾑｶﾊﾞｰ","sys_max":null,"sys_min":null},"181008":{"name":"ｵｯﾄｰﾎﾞｯｸ　99B16","price":1850,"category":"ｽﾄｯｷﾈｯﾄ","sys_max":null,"sys_min":null},"181009":{"name":"ﾗﾎﾟｯｸ　M1230","price":2550,"category":"ｽﾄｯｷﾈｯﾄ","sys_max":null,"sys_min":null},"183165":{"name":"ｵｽﾞｰﾙ　L-551002","price":15100,"category":"ﾊﾞﾙﾌﾞ","sys_max":null,"sys_min":null},"183091":{"name":"ｵｯﾄｰﾎﾞｯｸ　4R140","price":8500,"category":"ﾊﾞﾙﾌﾞ","sys_max":null,"sys_min":null},"183092":{"name":"ﾗﾎﾟｯｸ　M0261","price":8500,"category":"ﾊﾞﾙﾌﾞ","sys_max":null,"sys_min":null},"183093":{"name":"ﾗﾎﾟｯｸ　M0262","price":5800,"category":"ﾊﾞﾙﾌﾞ","sys_max":null,"sys_min":null},"183203":{"name":"ｳｨﾛｰｳｯﾄﾞ　ALS-SIZE　","price":31500,"category":"懸垂ﾍﾞﾙﾄ","sys_max":null,"sys_min":null},"183204":{"name":"ｳｨﾛｰｳｯﾄﾞ　LLC-SIZE　ｼｰﾘﾝｸﾞｶﾌ","price":12600,"category":"懸垂ﾍﾞﾙﾄ","sys_max":null,"sys_min":null},"183205":{"name":"ｳｨﾛｰｳｯﾄﾞ　LLS-SIZE","price":31900,"category":"懸垂ﾍﾞﾙﾄ","sys_max":null,"sys_min":null},"183024":{"name":"ｵｯﾄｰﾎﾞｯｸ　21B4　ｻｽﾍﾟﾝｼｮﾝｽﾘｰﾌﾞ","price":15000,"category":"懸垂ﾍﾞﾙﾄ","sys_max":null,"sys_min":null},"183128":{"name":"ﾗﾎﾟｯｸ　M1600　ｽﾘｯﾌﾟｼｰｽ","price":8300,"category":"懸垂ﾍﾞﾙﾄ","sys_max":null,"sys_min":null},"183129":{"name":"ﾗﾎﾟｯｸ　M1601","price":10900,"category":"懸垂ﾍﾞﾙﾄ","sys_max":null,"sys_min":null},"183035":{"name":"ｵｽﾞｰﾙ　L-211000　ｸﾗｯﾁ","price":42600,"category":"ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ","sys_max":21,"sys_min":21},"183036":{"name":"ｵｽﾞｰﾙ　L-214000　ｸﾗｯﾁ4穴","price":42600,"category":"ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ","sys_max":25,"sys_min":25},"183250":{"name":"ｵｽﾞｰﾙ　L-562000　ﾊｲﾌﾞﾘｯﾄﾞ","price":83000,"category":"ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ","sys_max":12,"sys_min":12},"183096":{"name":"ｵｽﾞｰﾙ　L-621000　ﾗﾁｪｯﾄ","price":39700,"category":"ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ","sys_max":15,"sys_min":15},"183039":{"name":"ｵｯﾄｰﾎﾞｯｸ　6A20　ｼｬﾄﾙ","price":70100,"category":"ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ","sys_max":43,"sys_min":43},"183134":{"name":"ｵｯﾄｰﾎﾞｯｸ　6A30=10N　埋込","price":48800,"category":"ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ","sys_max":37,"sys_min":37},"183099":{"name":"ｵｯﾄｰﾎﾞｯｸ　6A30=20　埋込","price":66000,"category":"ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ","sys_max":41,"sys_min":41},"183196":{"name":"ｵｯﾄｰﾎﾞｯｸ　6A40　","price":72600,"category":"ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ","sys_max":34,"sys_min":34},"183041":{"name":"ｶｽｹｲﾄﾞ　IRS-200-AK　ﾗﾁｪｯﾄ","price":38300,"category":"ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ","sys_max":35,"sys_min":35},"183046":{"name":"ｶｽｹｲﾄﾞ　IRS-200-PA　ﾋﾟﾗﾐｯﾄﾞ","price":24400,"category":"ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ","sys_max":15,"sys_min":15},"183043":{"name":"ｶｽｹｲﾄﾞ　IRS-650-AKL　ﾓｼﾞｭﾗｰ","price":50100,"category":"ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ","sys_max":45,"sys_min":45},"183100":{"name":"ｳｨﾛｰｳｯﾄﾞ　IRS-700-AIS480　ｱﾙﾌｧﾛｯｸ","price":61300,"category":"ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ","sys_max":45,"sys_min":45},"183063":{"name":"ｸｯｼｮﾝ　ｳｨﾛｰｳｯﾄﾞ　ALC-SIZE","price":67700,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183179":{"name":"ｸｯｼｮﾝ　ｳｨﾛｰｳｯﾄﾞ　H350-SIZE","price":67700,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183296":{"name":"ｸｯｼｮﾝ　ｳｨﾛｰｳｯﾄﾞ　T350-SIZE","price":73800,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183161":{"name":"ｸｯｼｮﾝ　ｵｽﾞｰﾙ　I-CL43","price":98700,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183270":{"name":"ｸｯｼｮﾝ　ｵｽﾞｰﾙ　I-CL53","price":86100,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183162":{"name":"ｸｯｼｮﾝ　ｵｽﾞｰﾙ　I-CW43","price":116800,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183150":{"name":"ｸｯｼｮﾝ　ｵｯﾄｰﾎﾞｯｸ　6Y92","price":44800,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183272":{"name":"ｸｯｼｮﾝ　ｵｯﾄｰﾎﾞｯｸ　6Y95=C","price":66500,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183153":{"name":"ｼｰﾙｲﾝ　ｵｽﾞｰﾙ　I-3663","price":121300,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183154":{"name":"ｼｰﾙｲﾝ　ｵｽﾞｰﾙ　I-3664","price":139500,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183222":{"name":"ｼｰﾙｲﾝ　ｵｽﾞｰﾙ　I-4443","price":102000,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183105":{"name":"ﾊﾟｯﾄﾞ　ｳｨﾛｰｳｯﾄﾞ　ALA-C","price":12300,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183274":{"name":"ﾊﾟｯﾄﾞ　ｵｽﾞｰﾙ　I-3000","price":31200,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183116":{"name":"ｳｨﾛｰｳｯﾄﾞ　ALL-SIZE","price":78600,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183186":{"name":"ｳｨﾛｰｳｯﾄﾞ　H352-SIZE","price":78600,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183299":{"name":"ｳｨﾛｰｳｯﾄﾞ　T352-SIZE","price":89500,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183111":{"name":"ﾋﾟﾝあり　ｵｽﾞｰﾙ　I-4013","price":98700,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183164":{"name":"ﾋﾟﾝあり　ｵｽﾞｰﾙ　I-4313","price":116800,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183183":{"name":"ﾋﾟﾝあり　ｵｽﾞｰﾙ　I-4913","price":116800,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183184":{"name":"ﾋﾟﾝあり　ｵｽﾞｰﾙ　I-5303","price":104300,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183069":{"name":"ﾋﾟﾝあり　ｵｽﾞｰﾙ　I-5406","price":86100,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183114":{"name":"ﾋﾟﾝあり　ｵｯﾄｰﾎﾞｯｸ　6Y70","price":78600,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183140":{"name":"ﾋﾟﾝあり　ｵｯﾄｰﾎﾞｯｸ　6Y75","price":84700,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183141":{"name":"ﾋﾟﾝあり　ｵｯﾄｰﾎﾞｯｸ　6Y90","price":48800,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"183261":{"name":"ﾋﾟﾝあり　ｵｯﾄｰﾎﾞｯｸ　6Y95=L","price":66500,"category":"ﾗｲﾅｰ","sys_max":null,"sys_min":null},"184040":{"name":"その他　ｵｽﾞｰﾙ　I-SXC0","price":36400,"category":"その他","sys_max":null,"sys_min":null},"184041":{"name":"その他　ｵｽﾞｰﾙ　I-SXG0","price":36400,"category":"その他","sys_max":null,"sys_min":null},"184042":{"name":"その他　ｵｽﾞｰﾙ　I-SXV0","price":36400,"category":"その他","sys_max":null,"sys_min":null},"184015":{"name":"その他　ｵｽﾞｰﾙ　K-190100　ﾌﾟﾚｯｼｬｰﾊﾟｯﾄﾞ","price":17300,"category":"その他","sys_max":null,"sys_min":null},"184079":{"name":"その他　ｵｯﾄｰﾎﾞｯｸ　21Y164　RevoFit","price":81000,"category":"その他","sys_max":null,"sys_min":null},"184026":{"name":"その他　ﾗﾎﾟｯｸ　M1620　SAKAGE","price":12000,"category":"その他","sys_max":null,"sys_min":null}};
+
+const PATTERNS = {"A1":[{code:161009,qty:1},{code:162015,qty:1},{code:162026,qty:1},{code:163016,qty:1},{code:164003,qty:1},{code:165010,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177055,qty:1},{code:179002,qty:1},{code:180034,qty:1},{code:181008,qty:1}],"A2":[{code:161009,qty:1},{code:162015,qty:1},{code:162026,qty:1},{code:163016,qty:1},{code:164003,qty:1},{code:165010,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177042,qty:1},{code:179024,qty:1},{code:180034,qty:1},{code:181008,qty:1}],"B1":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165010,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177055,qty:1},{code:179002,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183063,qty:1}],"B2":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165010,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177208,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183063,qty:1}],"B3":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165010,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177181,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183063,qty:1}],"B4":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165010,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177042,qty:1},{code:179024,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183063,qty:1}],"B5":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165010,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177199,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183063,qty:1}],"C1":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177055,qty:1},{code:179002,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183165,qty:1},{code:183128,qty:1},{code:183129,qty:1},{code:183063,qty:1}],"C2":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177208,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183165,qty:1},{code:183128,qty:1},{code:183129,qty:1},{code:183063,qty:1}],"C3":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177181,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183165,qty:1},{code:183128,qty:1},{code:183129,qty:1},{code:183063,qty:1}],"C4":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177042,qty:1},{code:179024,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183165,qty:1},{code:183128,qty:1},{code:183129,qty:1},{code:183063,qty:1}],"C5":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177199,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183165,qty:1},{code:183128,qty:1},{code:183129,qty:1},{code:183063,qty:1}],"C6":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177208,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183165,qty:1},{code:183222,qty:1},{code:184040,qty:1}],"C7":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177042,qty:1},{code:179024,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183165,qty:1},{code:183222,qty:1},{code:184040,qty:1}],"C8":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171014,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177199,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183165,qty:1},{code:183222,qty:1},{code:184040,qty:1}],"D1":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171298,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177055,qty:1},{code:179002,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183096,qty:1},{code:183164,qty:1}],"D2":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171393,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177208,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183096,qty:1},{code:183164,qty:1}],"D3":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171393,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177181,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183096,qty:1},{code:183164,qty:1}],"D4":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171393,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177042,qty:1},{code:179024,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183096,qty:1},{code:183164,qty:1}],"D5":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171393,qty:1},{code:172125,qty:1},{code:173049,qty:2},{code:177199,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183096,qty:1},{code:183164,qty:1}],"D6":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171393,qty:1},{code:172128,qty:1},{code:173049,qty:1},{code:177208,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183096,qty:1},{code:183164,qty:1}],"D7":[{code:161022,qty:1},{code:162015,qty:1},{code:162016,qty:1},{code:162026,qty:1},{code:164003,qty:1},{code:165014,qty:1},{code:166004,qty:1},{code:171393,qty:1},{code:172128,qty:1},{code:173049,qty:1},{code:177199,qty:1},{code:180034,qty:1},{code:181008,qty:1},{code:183096,qty:1},{code:183164,qty:1}]};
+
+const CATEGORIES = {};
+const CAT_ORDER = ['基本価格','足継手','ｿｹｯﾄｱﾀﾞﾌﾟﾀ','ﾀﾞﾌﾞﾙｱﾀﾞﾌﾟﾀ','ﾁｭｰﾌﾞ','ｸﾗﾝﾌﾟｱﾀﾞﾌﾟﾀ','足部','ｺﾈｸｼｮﾝﾌﾟﾚｰﾄ','ﾌｫｰﾑｶﾊﾞｰ','ｽﾄｯｷﾈｯﾄ','ﾊﾞﾙﾌﾞ','懸垂ﾍﾞﾙﾄ','ﾗｲﾅｰﾛｯｸｱﾀﾞﾌﾟﾀ','ﾗｲﾅｰ','その他'];
+Object.entries(MASTER).forEach(([code, item]) => {
+  if (!CATEGORIES[item.category]) CATEGORIES[item.category] = [];
+  CATEGORIES[item.category].push({code: parseInt(code), ...item});
+});
+
+// 足部選択時の必要パーツルール
+const FOOT_RULES = {
+  177108: {
+    label: 'SACH　ｵｯﾄｰﾎﾞｯｸ　1S49',
+    joints: [[169006, 169003]],
+    jointLabel: '足継手（169006: 2R54ｱﾙﾐ または 169003: 2R31ﾁﾀﾝ）',
+    plates: [179001],
+    plateLabel: 'ｺﾈｸｼｮﾝﾌﾟﾚｰﾄ（179001: 2R14）',
+  },
+  177042: {
+    label: 'SACH　ﾗﾎﾟｯｸ　M1170　J-foot',
+    joints: [],
+    jointLabel: null,
+    plates: [179024],
+    plateLabel: 'ｺﾈｸｼｮﾝﾌﾟﾚｰﾄ（179024: M12-007 J-foot用）',
+  },
+  177115: {
+    label: 'SACH　ﾗﾎﾟｯｸ　C1170　小児用J-foot',
+    joints: [[169032]],
+    jointLabel: '足継手（169032: M1305 Ai SACH）',
+    plates: [179024],
+    plateLabel: 'ｺﾈｸｼｮﾝﾌﾟﾚｰﾄ（179024: M12-007 J-foot用）',
+  },
+  177055: {
+    label: '単軸　ｵｯﾄｰﾎﾞｯｸ　1H38',
+    joints: [[169043, 169044]],
+    jointLabel: '足継手（169043: 2R33ﾁﾀﾝ または 169044: 2R51ｱﾙﾐ）',
+    plates: [179002],
+    plateLabel: 'ｺﾈｸｼｮﾝﾌﾟﾚｰﾄ（179002: 2R22）',
+  },
+};
+
+let selectedGroup = null;
+let selectedPattern = null;
+let currentParts = [];
+let nextId = 0;
+
+function init() {
+  // グループボタン生成
+  const gs = document.getElementById('group-selector');
+  GROUPS.forEach(g => {
+    const btn = document.createElement('button');
+    btn.className = 'group-btn';
+    btn.id = 'grp-' + g.id;
+    btn.innerHTML = `<span class="g-label">${g.label}</span><span class="g-count">${g.patterns.length} パターン</span>`;
+    btn.onclick = () => selectGroup(g.id);
+    gs.appendChild(btn);
+  });
+  // カテゴリセレクト
+  const catSel = document.getElementById('add-cat-sel');
+  CAT_ORDER.forEach(cat => {
+    if (CATEGORIES[cat]) {
+      const opt = document.createElement('option');
+      opt.value = cat; opt.textContent = cat;
+      catSel.appendChild(opt);
+    }
+  });
+}
+
+function selectGroup(gid) {
+  if (selectedPattern) {
+    if (!confirm('パターンを再選択します。現在のパーツ内容はリセットされます。よろしいですか？')) return;
+    selectedPattern = null;
+    currentParts = [];
+    document.getElementById('parts-section').style.display = 'none';
+    document.getElementById('total-box').style.display = 'none';
+    document.getElementById('action-row').style.display = 'none';
+    document.getElementById('empty-hint').style.display = '';
+    document.getElementById('selected-badge').classList.remove('show');
+    document.getElementById('e-note').classList.remove('show');
+  }
+  selectedGroup = gid;
+  document.querySelectorAll('.group-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('grp-' + gid).classList.add('selected');
+
+  const grp = GROUPS.find(g => g.id === gid);
+  const chipsWrap = document.getElementById('chips-wrap');
+  const chipsRow = document.getElementById('chips-row');
+  document.getElementById('chips-label').textContent = `② ${grp.label} のパターンを選択`;
+  chipsRow.innerHTML = '';
+  grp.patterns.forEach(pid => {
+    const chip = document.createElement('button');
+    chip.className = 'chip';
+    chip.id = 'chip-' + pid;
+    chip.innerHTML = `<span class="chip-code">${pid}</span><span class="chip-desc">${PATTERNS_META[pid]}</span>`;
+    chip.onclick = () => selectPattern(pid);
+    chipsRow.appendChild(chip);
+  });
+  chipsWrap.classList.add('show');
+}
+
+function selectPattern(key) {
+  selectedPattern = key;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  const chip = document.getElementById('chip-' + key);
+  if (chip) chip.classList.add('selected');
+
+  // バッジ表示
+  document.getElementById('badge-code').textContent = key;
+  document.getElementById('badge-desc').textContent = '　' + PATTERNS_META[key];
+  document.getElementById('selected-badge').classList.add('show');
+
+  const isE = key.startsWith('E');
+  document.getElementById('e-note').classList.toggle('show', isE);
+
+  currentParts = isE ? [] : (PATTERNS[key] || []).map(p => ({id: nextId++, code: p.code, qty: p.qty}));
+
+  renderParts();
+  document.getElementById('parts-section').style.display = '';
+  document.getElementById('empty-hint').style.display = 'none';
+  document.getElementById('total-box').style.display = '';
+  document.getElementById('action-row').style.display = '';
+}
+
+function clearPattern() {
+  if (!confirm('パターン選択をやり直しますか？')) return;
+  selectedPattern = null;
+  currentParts = [];
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('selected-badge').classList.remove('show');
+  document.getElementById('e-note').classList.remove('show');
+  document.getElementById('parts-section').style.display = 'none';
+  document.getElementById('total-box').style.display = 'none';
+  document.getElementById('action-row').style.display = 'none';
+  document.getElementById('empty-hint').style.display = '';
+}
+
+function isModified() {
+  // 元パターンのコードセットと現在のコードセットを比較
+  if (!selectedPattern || selectedPattern.startsWith('E')) return false;
+  const original = (PATTERNS[selectedPattern] || []).map(p => p.code).sort().join(',');
+  const current = currentParts.map(p => p.code).sort().join(',');
+  return original !== current;
+}
+
+function updateBadge() {
+  if (!selectedPattern) return;
+  const modified = isModified();
+  const codeEl = document.getElementById('badge-code');
+  const modEl = document.getElementById('badge-modified');
+  codeEl.textContent = selectedPattern;
+  if (modEl) modEl.style.display = modified ? '' : 'none';
+}
+
+function renderParts() {
+  const tbody = document.getElementById('parts-tbody');
+  tbody.innerHTML = '';
+  currentParts.forEach(part => {
+    const m = MASTER[String(part.code)];
+    if (!m) return;
+    const catItems = CATEGORIES[m.category] || [];
+    const tr = document.createElement('tr');
+    tr.dataset.id = part.id;
+    tr.innerHTML = `
+      <td><button class="btn-del" onclick="deletePart(${part.id})">×</button></td>
+      <td><span class="code-cell">${part.code}</span></td>
+      <td><select class="part-select" onchange="changePart(${part.id}, this.value)">${catItems.map(ci => `<option value="${ci.code}" ${ci.code===part.code?'selected':''}>${ci.name}</option>`).join('')}</select></td>
+      <td><span class="cat-badge">${m.category}</span></td>
+      <td><input class="qty-input" type="number" min="1" value="${part.qty}" onchange="changeQty(${part.id}, this.value)"></td>
+      <td class="price-cell">¥${m.price.toLocaleString()}</td>`;
+    tbody.appendChild(tr);
+  });
+  updateTotal();
+  updateSysTotal();
+  updateBadge();
+}
+
+function checkFootAlert(footCode) {
+  const rule = FOOT_RULES[footCode];
+  if (!rule) return;
+
+  const currentCodes = currentParts.map(p => p.code);
+  const missing = [];
+
+  // 足継手チェック
+  if (rule.joints.length > 0) {
+    const jointOptions = rule.joints[0];
+    const hasJoint = jointOptions.some(c => currentCodes.includes(c));
+    if (!hasJoint) missing.push('⚙ 足継手：' + rule.jointLabel);
+  }
+
+  // コネクションプレートチェック
+  const hasPlate = rule.plates.some(c => currentCodes.includes(c));
+  if (!hasPlate) missing.push('🔩 コネクションプレート：' + rule.plateLabel);
+
+  if (missing.length > 0) {
+    showFootAlert(rule.label, missing);
+  }
+}
+
+function showFootAlert(footName, missing) {
+  const box = document.getElementById('foot-alert-box');
+  const list = document.getElementById('foot-alert-list');
+  document.getElementById('foot-alert-name').textContent = footName;
+  list.innerHTML = missing.map(m => '<li style="margin:4px 0;">' + m + '</li>').join('');
+  box.style.display = '';
+  // 3秒後に薄くなるが消えない
+  clearTimeout(box._timer);
+  box.style.opacity = '1';
+}
+
+function closeFootAlert() {
+  document.getElementById('foot-alert-box').style.display = 'none';
+}
+
+function changePart(id, newCode) {
+  const part = currentParts.find(p => p.id === id);
+  if (part) part.code = parseInt(newCode);
+  const m = MASTER[String(newCode)];
+  const tr = document.querySelector(`tr[data-id="${id}"]`);
+  if (tr && m) {
+    tr.querySelector('.code-cell').textContent = newCode;
+    const priceCells = tr.querySelectorAll('.price-cell');
+    priceCells[0].textContent = '¥' + m.price.toLocaleString();
+    updateSubRow(id); updateTotal(); updateSysTotal(); updateBadge();
+    if (m.category === '足部') checkFootAlert(parseInt(newCode));
+  }
+}
+function changeQty(id, val) {
+  const qty = Math.max(1, parseInt(val) || 1);
+  const part = currentParts.find(p => p.id === id);
+  if (part) part.qty = qty;
+  updateSubRow(id); updateTotal(); updateSysTotal();
+}
+function updateSubRow(id) {
+  const part = currentParts.find(p => p.id === id);
+  if (!part) return;
+  const m = MASTER[String(part.code)];
+  if (!m) return;
+  const el = document.getElementById('sub-' + id);
+  if (el) el.textContent = '¥' + (m.price * part.qty).toLocaleString();
+}
+function deletePart(id) { currentParts = currentParts.filter(p => p.id !== id); renderParts(); }function addPart() {
+  const code = parseInt(document.getElementById('add-item-sel').value);
+  const qty = parseInt(document.getElementById('add-qty').value) || 1;
+  if (!code) { showToast('品名を選択してください'); return; }
+  currentParts.push({id: nextId++, code, qty});
+  renderParts();
+  document.getElementById('add-item-sel').value = '';
+  document.getElementById('add-qty').value = 1;
+  showToast('パーツを追加しました');
+  const m = MASTER[String(code)];
+  if (m && m.category === '足部') checkFootAlert(code);
+}
+function refreshAddSel() {
+  const cat = document.getElementById('add-cat-sel').value;
+  const sel = document.getElementById('add-item-sel');
+  sel.innerHTML = '<option value="">— 品名を選択 —</option>';
+  if (cat && CATEGORIES[cat]) {
+    CATEGORIES[cat].forEach(item => {
+      const opt = document.createElement('option');
+      opt.value = item.code;
+      opt.textContent = item.name + '　¥' + item.price.toLocaleString();
+      sel.appendChild(opt);
+    });
+  }
+}
+function updateTotal() {
+  let subtotal = 0;
+  currentParts.forEach(p => { const m = MASTER[String(p.code)]; if (m) subtotal += m.price * p.qty; });
+  const tax = Math.round(subtotal * 0.06);
+  const grand = subtotal + tax;
+  document.getElementById('subtotal-val').textContent = '¥' + subtotal.toLocaleString();
+  document.getElementById('tax-val').textContent = '¥' + tax.toLocaleString();
+  document.getElementById('grand-val').textContent = '¥' + grand.toLocaleString();
+}
+
+function updateSysTotal() {
+  let totalMax = 0, totalMin = 0, hasAny = false;
+  currentParts.forEach(p => {
+    const m = MASTER[String(p.code)];
+    if (!m) return;
+    if (m.sys_max !== null) { totalMax += m.sys_max * p.qty; hasAny = true; }
+    if (m.sys_min !== null) { totalMin += m.sys_min * p.qty; hasAny = true; }
+  });
+  const box = document.getElementById('sys-total-box');
+  if (!box) return;
+  if (hasAny) {
+    box.style.display = '';
+    document.getElementById('sys-max-total').textContent = totalMax % 1 === 0 ? totalMax : totalMax.toFixed(1);
+    document.getElementById('sys-min-total').textContent = totalMin % 1 === 0 ? totalMin : totalMin.toFixed(1);
+  } else {
+    box.style.display = 'none';
+  }
+}
+
+function showPreview() {
+  const hospital = document.getElementById('hospital').value.trim();
+  const patient = document.getElementById('patient').value.trim();
+  if (!hospital) { showToast('病院名を入力してください'); return; }
+  if (!patient) { showToast('患者名を入力してください'); return; }
+  if (currentParts.length === 0) { showToast('パーツがありません'); return; }
+  let subtotal = 0;
+  currentParts.forEach(p => { const m = MASTER[String(p.code)]; if (m) subtotal += m.price * p.qty; });
+  const tax = Math.round(subtotal * 0.06);
+  const grand = subtotal + tax;
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日`;
+  const modified = isModified();
+  const patternLabel = selectedPattern
+    ? (modified ? `${selectedPattern}（一部変更あり）` : selectedPattern)
+    : '自由選択';
+  const patternDesc = selectedPattern ? PATTERNS_META[selectedPattern] : '自由選択';
+
+  // 元パターンのコード一覧（変更検知用）
+  const originalCodes = selectedPattern ? (PATTERNS[selectedPattern] || []).map(p => p.code) : [];
+  const currentCodes = currentParts.map(p => p.code);
+
+  const rows = currentParts.map(p => {
+    const m = MASTER[String(p.code)];
+    if (!m) return '';
+    // 行の変更状態を判定
+    let rowBg = 'transparent';
+    let rowNote = '';
+    if (selectedPattern && !selectedPattern.startsWith('E')) {
+      if (!originalCodes.includes(p.code)) {
+        // 元パターンにないコード＝追加または変更
+        rowBg = '#fff8e1'; // 薄い黄色
+        rowNote = '<span style="font-size:9px;color:#b45309;font-weight:700;margin-left:4px;background:#fef3c7;padding:1px 5px;border-radius:3px;">変更</span>';
+      }
+    }
+    return `<tr style="background:${rowBg}">
+      <td style="font-family:monospace;padding:6px 8px;border-bottom:1px solid #eee;font-size:12px;color:#1a4d6e">${p.code}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:12px">${m.name}${rowNote}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee;font-size:11px;color:#666">${m.category}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:center;font-size:12px">${p.qty}</td>
+      <td style="padding:6px 8px;border-bottom:1px solid #eee;text-align:right;font-size:12px;font-variant-numeric:tabular-nums">¥${m.price.toLocaleString()}</td>
+    </tr>`;
+  }).join('');
+
+  // 元パターンにあったが現在ない行（削除されたパーツ）
+  const deletedRows = selectedPattern && !selectedPattern.startsWith('E')
+    ? (PATTERNS[selectedPattern] || [])
+        .filter(p => !currentCodes.includes(p.code))
+        .map(p => {
+          const m = MASTER[String(p.code)];
+          if (!m) return '';
+          return `<tr style="background:#fef2f2;opacity:0.7">
+            <td style="font-family:monospace;padding:6px 8px;border-bottom:1px solid #fecaca;font-size:12px;color:#991b1b;text-decoration:line-through">${p.code}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #fecaca;font-size:12px;color:#991b1b;text-decoration:line-through">${m.name}<span style="font-size:9px;font-weight:700;margin-left:4px;background:#fee2e2;padding:1px 5px;border-radius:3px;text-decoration:none;display:inline-block;">削除</span></td>
+            <td style="padding:6px 8px;border-bottom:1px solid #fecaca;font-size:11px;color:#991b1b">${m.category}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #fecaca;text-align:center;font-size:12px;color:#991b1b">${p.qty}</td>
+            <td style="padding:6px 8px;border-bottom:1px solid #fecaca;text-align:right;font-size:12px;color:#991b1b">¥${m.price.toLocaleString()}</td>
+          </tr>`;
+        }).join('')
+    : '';
+
+  document.getElementById('print-area').innerHTML = `
+<div style="font-family:'Noto Sans JP',sans-serif;color:#1c1c1c;">
+
+  <!-- ヘッダー -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;padding-bottom:16px;border-bottom:2px solid #1a4d6e;">
+
+    <!-- 左：病院名・患者名（同じ大きさ） -->
+    <div>
+      <div style="font-size:10px;color:#888;letter-spacing:0.12em;margin-bottom:8px;">HOSPITAL / PATIENT</div>
+      <div style="font-size:18px;font-weight:700;color:#1a4d6e;margin-bottom:6px;">${hospital}</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:11px;color:#888;background:#f0ede8;padding:2px 8px;border-radius:3px;">患者</span>
+        <span style="font-size:18px;font-weight:700;color:#1c1c1c;">${patient}</span>
+      </div>
+    </div>
+
+    <!-- 右：書類情報 -->
+    <div style="text-align:right;">
+      <div style="font-size:10px;color:#888;letter-spacing:0.1em;margin-bottom:4px;">PROSTHETICS ESTIMATE</div>
+      <div style="font-size:17px;font-weight:700;color:#1a4d6e;margin-bottom:4px;">下腿義足　見積書</div>
+      <div style="font-size:12px;color:#555;margin-bottom:8px;">${dateStr}</div>
+      <div style="background:${modified ? '#fff3cd' : '#e8f0f5'};padding:4px 12px;border-radius:3px;display:inline-block;border:${modified ? '1px solid #ffc107' : 'none'};">
+        <span style="font-family:monospace;font-size:13px;font-weight:700;color:${modified ? '#856404' : '#1a4d6e'};">${patternLabel}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- パターン説明 -->
+  <div style="font-size:11px;color:#555;background:#f5f5f0;padding:6px 10px;border-radius:3px;margin-bottom:14px;">${patternDesc}${modified ? '　<span style="color:#856404;font-weight:700;">※ パーツに変更があります</span>' : ''}</div>
+
+  <!-- パーツ表 -->
+  <table style="width:100%;border-collapse:collapse;margin-bottom:16px;">
+    <thead>
+      <tr style="background:#1a4d6e;color:white;">
+        <th style="padding:8px;text-align:left;font-size:10px;letter-spacing:0.06em;">商品コード</th>
+        <th style="padding:8px;text-align:left;font-size:10px;letter-spacing:0.06em;">品名</th>
+        <th style="padding:8px;text-align:left;font-size:10px;letter-spacing:0.06em;">カテゴリ</th>
+        <th style="padding:8px;text-align:center;font-size:10px;letter-spacing:0.06em;">数量</th>
+        <th style="padding:8px;text-align:right;font-size:10px;letter-spacing:0.06em;">単価</th>
+      </tr>
+    </thead>
+    <tbody>${rows}${deletedRows}</tbody>
+  </table>
+
+  <!-- 変更がある場合の凡例 -->
+  ${modified ? `<div style="display:flex;gap:12px;margin-bottom:12px;font-size:10px;color:#555;flex-wrap:wrap;">
+    <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:12px;background:#fff8e1;border:1px solid #fde68a;border-radius:2px;"></span>変更・追加されたパーツ</span>
+    <span style="display:flex;align-items:center;gap:4px;"><span style="display:inline-block;width:12px;height:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:2px;"></span>元パターンから削除されたパーツ（参考）</span>
+  </div>` : ''}
+
+  <!-- 合計 -->
+  <div style="display:flex;justify-content:flex-end;">
+    <table style="border-collapse:collapse;font-size:13px;min-width:260px;">
+      <tr>
+        <td style="padding:6px 14px;color:#555;border-top:1px solid #ddd;">小計合計</td>
+        <td style="padding:6px 14px;text-align:right;border-top:1px solid #ddd;font-variant-numeric:tabular-nums;">¥${subtotal.toLocaleString()}</td>
+      </tr>
+      <tr>
+        <td style="padding:6px 14px;color:#555;">加算（6%）</td>
+        <td style="padding:6px 14px;text-align:right;font-variant-numeric:tabular-nums;">¥${tax.toLocaleString()}</td>
+      </tr>
+      <tr style="background:#1a4d6e;color:white;font-weight:700;">
+        <td style="padding:10px 16px;border-radius:3px 0 0 3px;font-size:14px;">合計</td>
+        <td style="padding:10px 16px;text-align:right;font-size:17px;font-family:monospace;border-radius:0 3px 3px 0;">¥${grand.toLocaleString()}</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- フッター -->
+  <div style="margin-top:24px;padding-top:12px;border-top:1px solid #eee;font-size:10px;color:#aaa;text-align:center;">
+    ※ 補装具費算定用（加算率6%）　／　デモ版
+  </div>
+</div>`;
+  document.getElementById('preview-overlay').classList.add('show');
+}
+function closePreview() { document.getElementById('preview-overlay').classList.remove('show'); }
+function resetAll() {
+  if (!confirm('入力内容をリセットしますか？')) return;
+  selectedGroup = null; selectedPattern = null; currentParts = []; nextId = 0;
+  document.getElementById('hospital').value = '';
+  document.getElementById('patient').value = '';
+  document.querySelectorAll('.group-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('chips-wrap').classList.remove('show');
+  document.getElementById('selected-badge').classList.remove('show');
+  document.getElementById('parts-section').style.display = 'none';
+  document.getElementById('total-box').style.display = 'none';
+  document.getElementById('action-row').style.display = 'none';
+  document.getElementById('empty-hint').style.display = '';
+  document.getElementById('e-note').classList.remove('show');
+  const sysBox = document.getElementById('sys-total-box');
+  if (sysBox) sysBox.style.display = 'none';
+  const alertBox = document.getElementById('foot-alert-box');
+  if (alertBox) alertBox.style.display = 'none';
+  const stumpInput = document.getElementById('stump-length');
+  if (stumpInput) stumpInput.value = '';
+  const prosDiv = document.getElementById('prosthetic-length');
+  if (prosDiv) prosDiv.style.display = 'none';
+}
+function updateProstheticLength() {
+  const stump = parseFloat(document.getElementById('stump-length').value);
+  const sysMaxEl = document.getElementById('sys-max-total');
+  const sysMinEl = document.getElementById('sys-min-total');
+  const prosDiv = document.getElementById('prosthetic-length');
+  if (!isNaN(stump) && stump > 0 && sysMaxEl.textContent !== '—') {
+    const prosMax = parseFloat(sysMaxEl.textContent) + stump;
+    const prosMin = parseFloat(sysMinEl.textContent) + stump;
+    document.getElementById('pros-max').textContent = prosMax % 1 === 0 ? prosMax : prosMax.toFixed(1);
+    document.getElementById('pros-min').textContent = prosMin % 1 === 0 ? prosMin : prosMin.toFixed(1);
+    prosDiv.style.display = '';
+  } else {
+    prosDiv.style.display = 'none';
+  }
+}
+// ===== GAS URL =====
+const GAS_URL = 'https://script.google.com/a/macros/jpnfootcare.com/s/AKfycbxdBfvo8rI9aHaJCYx_dVBvLet_Ll7fcF-vP93K_5B_Zd1lUsvoCUIhDwoGxrEJL-Guyg/exec';
+
+async function saveToDrive() {
+  const hospital = document.getElementById('hospital').value.trim();
+  const patient  = document.getElementById('patient').value.trim();
+  if (!hospital) { showToast('病院名を入力してください'); return; }
+  if (!patient)  { showToast('患者名を入力してください'); return; }
+  if (currentParts.length === 0) { showToast('パーツがありません'); return; }
+
+  const btn = document.getElementById('drive-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 保存中...';
+
+  // 見積書HTMLを生成
+  showPreview();
+  const printArea = document.getElementById('print-area');
+  const estimateHtml = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+    <style>
+      body { font-family: 'Hiragino Sans', sans-serif; margin: 15mm; color: #1c1c1c; }
+      table { width: 100%; border-collapse: collapse; }
+      th { background: #1a4d6e; color: white; padding: 7px 8px; font-size: 10px; text-align: left; }
+      td { padding: 6px 8px; border-bottom: 1px solid #eee; font-size: 11px; }
+    </style>
+  </head><body>${printArea.innerHTML}</body></html>`;
+
+  // ファイル名
+  const today = new Date();
+  const dateStr = `${today.getFullYear()}${String(today.getMonth()+1).padStart(2,'0')}${String(today.getDate()).padStart(2,'0')}`;
+  const patLabel = selectedPattern || 'カスタム';
+  const fileName = `${dateStr}_${hospital}_${patient}_${patLabel}`;
+
+  try {
+    // GETパラメータとして送信（CORS回避）
+    const params = new URLSearchParams({
+      html: estimateHtml,
+      fileName: fileName,
+    });
+    const res = await fetch(`${GAS_URL}?${params.toString()}`, {
+      method: 'GET',
+    });
+    const result = await res.json();
+
+    if (result.status === 'ok') {
+      document.getElementById('drive-result-icon').textContent  = '✅';
+      document.getElementById('drive-result-title').textContent = 'Driveに保存しました';
+      document.getElementById('drive-result-msg').innerHTML =
+        `<strong>${result.fileName}</strong><br>として保存されました。`;
+      const link = document.getElementById('drive-result-link');
+      link.href = result.fileUrl;
+      link.style.display = 'inline-block';
+    } else {
+      document.getElementById('drive-result-icon').textContent  = '❌';
+      document.getElementById('drive-result-title').textContent = '保存に失敗しました';
+      document.getElementById('drive-result-msg').textContent   = result.message || '不明なエラー';
+      document.getElementById('drive-result-link').style.display = 'none';
+    }
+  } catch (err) {
+    document.getElementById('drive-result-icon').textContent  = '❌';
+    document.getElementById('drive-result-title').textContent = '通信エラー';
+    document.getElementById('drive-result-msg').textContent   = 'ネットワーク接続を確認してください。\n' + err.message;
+    document.getElementById('drive-result-link').style.display = 'none';
+  }
+
+  document.getElementById('drive-result').classList.add('show');
+  btn.disabled = false;
+  btn.textContent = '☁️　Driveに保存';
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+document.getElementById('preview-overlay').addEventListener('click', function(e) { if (e.target === this) closePreview(); });
+init();
+</script>
+</body>
+</html>
